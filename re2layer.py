@@ -7,7 +7,7 @@ import numpy as np
 class Encoder(Module):
     def __init__(self, dim):
         super(Encoder, self).__init__()
-        self.bilstm = LSTM(dim, dim/2, bidirectional=True, dropout=0.2, num_layers=1)
+        self.bilstm = LSTM(dim, dim, bidirectional=True, dropout=0.2, num_layers=1)
     
     def forward(self, x):
         t_h, (_, _) = self.bilstm(x)
@@ -26,17 +26,17 @@ class RE2(Module):
             self.blocks.append(RE2Block(dim, self.aligner))
         
     def forward(self, emb_a, emb_b):
-        o_t2a = T.zeros_like(emb_a)
-        o_t1a = T.zeros_like(emb_a)
+        o_t2a = T.zeros_like(emb_a, dtype=T.float32)
+        o_t1a = T.zeros_like(emb_a, dtype=T.float32)
         
-        o_t2b = T.zeros_like(emb_a)
-        o_t1b = T.zeros_like(emb_a)
+        o_t2b = T.zeros_like(emb_a, dtype=T.float32)
+        o_t1b = T.zeros_like(emb_a, dtype=T.float32)
+        
         assert self.num_block > 0
         for i in range(self.num_block):
             inp_a = T.cat([emb_a, o_t1a + o_t2a])
             inp_b = T.cat([emb_b, o_t1b + o_t2b])
-            o_a = self.blocks[i](inp_a)
-            o_b = self.blocks[i](inp_b)
+            o_a, o_b = self.blocks[i](inp_a, inp_b)
             o_t2a = o_t1a
             o_t1a = o_a
             o_t2b = o_t1b
@@ -53,11 +53,15 @@ class RE2Block(Module):
         self.fuser = Fuser(dim)
         self.aligner = aligner
     
-    def forward(self, inp_a, encoded_b):
+    def forward(self, inp_a, inp_b):
         encoded_a = self.encoder(inp_a)
+        encoded_b = self.encoder(inp_b)
         aligned_a = self.aligner(encoded_a, encoded_b)
         fused_a = self.fuser(encoded_a, aligned_a)
-        return fused_a
+        aligned_b = self.aligner(encoded_b, encoded_a)
+        fused_b = self.fuser(encoded_b, aligned_b)
+
+        return fused_a, fused_b
         
         
 class Fuser(Module):
@@ -110,3 +114,10 @@ class Prediction(Module):
 
 
 
+if __name__ == '__main__':
+    RE2 = RE2()
+    dummy_input_a = T.ones(32,10,768, dtype=T.float32)
+    dummy_input_b = T.ones(32,10,768, dtype=T.float32)
+    y = RE2(dummy_input_a, dummy_input_b)
+    print(y.size())
+    
