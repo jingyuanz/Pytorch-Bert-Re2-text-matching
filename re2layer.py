@@ -18,13 +18,9 @@ class RE2(Module):
         
     def forward(self, emb_a, emb_b):
         o_t2a = T.zeros_like(emb_a, dtype=T.float32)
-        # o_t2a.to(self.device)
         o_t1a = T.zeros_like(emb_a, dtype=T.float32)
-        # o_t1a.to(self.device)
         o_t2b = T.zeros_like(emb_a, dtype=T.float32)
-        # o_t2b.to(self.device)
         o_t1b = T.zeros_like(emb_a, dtype=T.float32)
-        # o_t1b.to(self.device)
         assert self.num_block > 0
         for i in range(self.num_block):
             inp_a = T.cat([emb_a, o_t1a + o_t2a], dim=-1)
@@ -114,7 +110,7 @@ class Prediction(Module):
         a = T.max(a, dim=1)[0]
         b = T.max(b, dim=1)[0]
         y = F.dropout(self.H(T.cat([a,b,T.abs(a-b),a*b],dim=-1)),p=0.2)
-        y = F.sigmoid(y)
+        y = T.sigmoid(y)
         return y
 
 
